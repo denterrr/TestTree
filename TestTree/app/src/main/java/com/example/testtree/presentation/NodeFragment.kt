@@ -13,24 +13,28 @@ import androidx.navigation.fragment.findNavController
 import com.example.testtree.*
 import com.example.testtree.databinding.FragmentNodeBinding
 import com.example.testtree.di.DaggerAppComponent
+import com.example.testtree.domain.models.ListNodes
 import com.example.testtree.domain.models.Node
 import com.example.testtree.domain.models.Tree
+import java.util.*
 import javax.inject.Inject
 
 class NodeFragment : Fragment() {
 
     lateinit var binding: FragmentNodeBinding
 
-    lateinit var tree: Tree
-
     @Inject
     lateinit var viewModel: NodeViewModel
 
     lateinit var curNode: Node
 
+    lateinit var rootNode: Node
+
     lateinit var navController: NavController
 
     var bundle = Bundle()
+
+    lateinit var listWithNodesNames: LinkedList<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +52,6 @@ class NodeFragment : Fragment() {
         binding.apply {
             leftBtn.setOnClickListener {
                 if (curNode.left != null) {
-                    viewModel.changeNode(curNode.left)
                     bundle.putParcelable("key", curNode.left)
                     navController.navigate(R.id.action_nodeFragment_self, bundle)
                 } else {
@@ -58,7 +61,6 @@ class NodeFragment : Fragment() {
             }
             rightBtn.setOnClickListener {
                 if (curNode.right != null) {
-                    viewModel.changeNode(curNode.right)
                     bundle.putParcelable("key", curNode.right)
                     navController.navigate(R.id.action_nodeFragment_self, bundle)
                 } else {
@@ -94,16 +96,11 @@ class NodeFragment : Fragment() {
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
+                    Log.d("TAG", "clicked on delete")
                     if (curNode.isLeft != null) {
-                        val i = curNode.parent
-                        i?.left = null
-                        viewModel.changeNode(i)
                         bundle.putParcelable("deleteleft", curNode.parent)
                         navController.navigate(R.id.action_nodeFragment_self, bundle)
                     } else if (curNode.isRight != null) {
-                        val i = curNode.parent
-                        i?.right = null
-                        viewModel.changeNode(i)
                         bundle.putParcelable("deleteright", curNode.parent)
                         navController.navigate(R.id.action_nodeFragment_self, bundle)
                     }
@@ -117,7 +114,6 @@ class NodeFragment : Fragment() {
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    viewModel.changeNode(curNode.parent)
                     bundle.putParcelable("key", curNode.parent)
                     navController.navigate(R.id.action_nodeFragment_self, bundle)
                 }
@@ -134,53 +130,125 @@ class NodeFragment : Fragment() {
         val bundleNode = arguments?.getParcelable<Node>("key")
         val bundleNodeDeleteleft = arguments?.getParcelable<Node>("deleteleft")
         val bundleNodeDeleteright = arguments?.getParcelable<Node>("deleteright")
+
+
         if (bundleNodeDeleteleft == null && bundleNodeDeleteright == null) {
             if (bundleNode != null) {
                 curNode = bundleNode
                 binding.nameNode.text = curNode.name
-                if(curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
+                if (curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
+                viewModel.getTrees().observe(viewLifecycleOwner, Observer { nodes ->
+                    if (!nodes.contains(curNode)) {
+                        viewModel.insertTree(curNode)
+                        updateListNodesNames()
+                        viewModel.getListNodes().observe(viewLifecycleOwner, Observer { listNodes ->
+                            if (listNodes.isNotEmpty()) {
+                                listWithNodesNames = listNodes.last().listNodesNames
+                                nodes.forEach {
+                                    if (listWithNodesNames.contains(it.name)) {
+                                        if (it.parent?.name == curNode.name) {
+                                            if (it.isLeft == true) {
+                                                it.parent = curNode
+                                                curNode.left = it
+                                            } else if (it.isRight == true) {
+                                                it.parent = curNode
+                                                curNode.right = it
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                    }
+                })
             } else {
-                viewModel.getTrees().observe(viewLifecycleOwner, Observer { listTrees ->
-                    tree = if (listTrees.isNotEmpty()) {
-                        Log.d("TAG", "list not empty")
-                        listTrees.last()
+                viewModel.getTrees().observe(viewLifecycleOwner, Observer { nodes ->
+                    binding.rootTv.visibility = View.VISIBLE
+                    curNode = if (nodes.isEmpty()) {
+                        Node(isRoot = true)
                     } else {
-                        Log.d("TAG", "list empty")
-                        Tree()
+                        nodes.first()
                     }
+                    binding.nameNode.text = curNode.name
+                    if (!nodes.contains(curNode)) {
+                        viewModel.insertTree(curNode)
+                        updateListNodesNames()
+                    }
+                    viewModel.getListNodes().observe(viewLifecycleOwner, Observer { listNodes ->
+                        if (listNodes.isNotEmpty()) {
+                            listWithNodesNames = listNodes.last().listNodesNames
+                            nodes.forEach {
+                                if (listWithNodesNames.contains(it.name)) {
+                                    if (it.parent?.name == curNode.name) {
+                                        if (it.isLeft == true) {
+                                            it.parent = curNode
+                                            curNode.left = it
+                                        } else if (it.isRight == true) {
+                                            it.parent = curNode
+                                            curNode.right = it
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    })
 
-                    if (tree.root == null) {
-                        binding.rootTv.visibility = View.VISIBLE
-                        Log.d("TAG", "root empty")
-                        curNode = Node(isRoot = true)
-                        tree.root = curNode
-                        binding.nameNode.text = curNode.name
-                        viewModel.insertTree(tree)
-                    } else {
-                        binding.rootTv.visibility = View.VISIBLE
-                        Log.d("TAG", "root not empty")
-                        curNode = tree.root!!
-                        binding.nameNode.text = curNode.name
-                    }
                 })
             }
         } else {
             if (bundleNodeDeleteleft != null) {
                 curNode = bundleNodeDeleteleft
+                removeListNodesName(curNode.left?.name ?: "")
+                val deletedNode = curNode.left
+                viewModel.deleteNode(deletedNode!!)
                 curNode.left = null
                 binding.nameNode.text = curNode.name
-                if(curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
-                Log.d("TAG", "We here")
+                if (curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
+
             } else if (bundleNodeDeleteright != null) {
                 curNode = bundleNodeDeleteright
+                removeListNodesName(curNode.right?.name ?: "")
+                val deletedNode = curNode.right
+                viewModel.deleteNode(deletedNode!!)
                 curNode.right = null
                 binding.nameNode.text = curNode.name
-                if(curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
-                Log.d("TAG", "We here")
-
-
+                if (curNode.isRoot) binding.rootTv.visibility = View.VISIBLE
             }
         }
+    }
+
+
+    private fun updateListNodesNames() {
+        viewModel.getListNodes().observe(viewLifecycleOwner, Observer {
+            if (it.isNotEmpty()) {
+                val old = it.last()
+                val list = old.listNodesNames
+                if (!list.contains(curNode.name)) {
+                    list.add(curNode.name)
+                    viewModel.deleteList(old)
+                    viewModel.insertList(ListNodes(listNodesNames = list))
+                }
+            }
+            else{
+                val list = LinkedList<String>()
+                list.add(curNode.name)
+                viewModel.insertList(ListNodes(listNodesNames = list))
+            }
+        })
+    }
+
+    private fun removeListNodesName(name: String) {
+        viewModel.getListNodes().observe(viewLifecycleOwner, Observer {
+            if (it.isNotEmpty()) {
+                val old = it.last()
+                val list = old.listNodesNames
+                if (list.contains(name)) {
+                    list.remove(name)
+                    viewModel.deleteList(old)
+                    viewModel.insertList(ListNodes(listNodesNames = list))
+                }
+            }
+        })
     }
 
 

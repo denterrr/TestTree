@@ -2,21 +2,34 @@ package com.example.testtree.domain.models
 
 
 import android.os.Parcelable
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import kotlinx.parcelize.Parcelize
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.util.*
 import kotlin.random.Random
 
+@Entity(tableName = "my_table")
 @Parcelize
 class Node(
+    @PrimaryKey(autoGenerate = true)
+    var id: Int = 0,
+    @ColumnInfo
     var parent: Node? = null,
+    @Transient
     var left: Node? = null,
+    @Transient
     var right: Node? = null,
+    @ColumnInfo
     var isRoot: Boolean = false,
+    @ColumnInfo
     var isLeft: Boolean? = null,
+    @ColumnInfo
     var isRight: Boolean? = null,
+    @ColumnInfo
     var hash: Int = 0,
 ) : Parcelable {
 
