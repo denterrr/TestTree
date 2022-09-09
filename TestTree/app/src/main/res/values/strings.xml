@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">TestTree</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="go_to_left_child">Go to\nleft child</string>
+    <string name="go_to_right_child">Go to\nright child</string>
+    <string name="create_right_child">Create right\nchild</string>
+    <string name="create_left_child">Create left\nchild</string>
+    <string name="delete_node">Delete node</string>
+    <string name="go_to_parent">Go to parent</string>
+    <string name="its_root_node">Its root node</string>
+</resources>
